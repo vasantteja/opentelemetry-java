@@ -8,10 +8,9 @@ package io.opentelemetry.exporter.internal.compression;
 import static io.opentelemetry.api.internal.Utils.checkArgument;
 import static java.util.stream.Collectors.joining;
 
+import io.opentelemetry.sdk.common.spi.ComponentLoader;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.ServiceLoader;
-import java.util.Set;
 import javax.annotation.Nullable;
 
 /**
@@ -24,8 +23,6 @@ import javax.annotation.Nullable;
  */
 public final class CompressorUtil {
 
-  private static final Map<String, Compressor> compressorRegistry = buildCompressorRegistry();
-
   private CompressorUtil() {}
 
   /**
@@ -35,25 +32,26 @@ public final class CompressorUtil {
    * @throws IllegalArgumentException if no match is found
    */
   @Nullable
-  public static Compressor validateAndResolveCompressor(String compressionMethod) {
-    Set<String> supportedEncodings = compressorRegistry.keySet();
-    Compressor compressor = compressorRegistry.get(compressionMethod);
-    checkArgument(
-        "none".equals(compressionMethod) || compressor != null,
-        "Unsupported compressionMethod. Compression method must be \"none\" or one of: "
-            + supportedEncodings.stream().collect(joining(",", "[", "]")));
-    return compressor;
-  }
+  public static Compressor validateAndResolveCompressor(
+      String compressionMethod, ComponentLoader componentLoader) {
+    if ("none".equals(compressionMethod)) {
+      return null;
+    }
 
-  private static Map<String, Compressor> buildCompressorRegistry() {
     Map<String, Compressor> compressors = new HashMap<>();
-    for (CompressorProvider spi :
-        ServiceLoader.load(CompressorProvider.class, CompressorUtil.class.getClassLoader())) {
+    // Load compressors from SPI
+    for (CompressorProvider spi : componentLoader.load(CompressorProvider.class)) {
       Compressor compressor = spi.getInstance();
       compressors.put(compressor.getEncoding(), compressor);
     }
     // Hardcode gzip compressor
     compressors.put(GzipCompressor.getInstance().getEncoding(), GzipCompressor.getInstance());
-    return compressors;
+
+    Compressor compressor = compressors.get(compressionMethod);
+    checkArgument(
+        compressor != null,
+        "Unsupported compressionMethod. Compression method must be \"none\" or one of: "
+            + compressors.keySet().stream().collect(joining(",", "[", "]")));
+    return compressor;
   }
 }

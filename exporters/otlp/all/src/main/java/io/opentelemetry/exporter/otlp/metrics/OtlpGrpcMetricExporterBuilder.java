@@ -20,6 +20,8 @@ import io.opentelemetry.exporter.otlp.internal.OtlpUserAgent;
 import io.opentelemetry.sdk.common.InternalTelemetryVersion;
 import io.opentelemetry.sdk.common.export.MemoryMode;
 import io.opentelemetry.sdk.common.export.RetryPolicy;
+import io.opentelemetry.sdk.common.spi.ComponentLoader;
+import io.opentelemetry.sdk.common.spi.SpiHelper;
 import io.opentelemetry.sdk.internal.StandardComponentId;
 import io.opentelemetry.sdk.metrics.InstrumentType;
 import io.opentelemetry.sdk.metrics.data.MetricData;
@@ -62,6 +64,7 @@ public final class OtlpGrpcMetricExporterBuilder {
   private AggregationTemporalitySelector aggregationTemporalitySelector;
   private DefaultAggregationSelector defaultAggregationSelector;
   private MemoryMode memoryMode;
+  @Nullable private ComponentLoader componentLoader;
 
   OtlpGrpcMetricExporterBuilder(
       GrpcExporterBuilder<Marshaler> delegate,
@@ -86,6 +89,7 @@ public final class OtlpGrpcMetricExporterBuilder {
         DEFAULT_AGGREGATION_TEMPORALITY_SELECTOR,
         DefaultAggregationSelector.getDefault(),
         DEFAULT_MEMORY_MODE);
+    OtlpUserAgent.addUserAgentHeader(delegate::addConstantHeader);
   }
 
   /**
@@ -169,7 +173,13 @@ public final class OtlpGrpcMetricExporterBuilder {
    */
   public OtlpGrpcMetricExporterBuilder setCompression(String compressionMethod) {
     requireNonNull(compressionMethod, "compressionMethod");
-    Compressor compressor = CompressorUtil.validateAndResolveCompressor(compressionMethod);
+    Compressor compressor =
+        CompressorUtil.validateAndResolveCompressor(
+            compressionMethod,
+            componentLoader == null
+                ? SpiHelper.create(OtlpGrpcMetricExporterBuilder.class.getClassLoader())
+                    .getComponentLoader()
+                : componentLoader);
     delegate.setCompression(compressor);
     return this;
   }
@@ -332,13 +342,12 @@ public final class OtlpGrpcMetricExporterBuilder {
   }
 
   /**
-   * Set the {@link ClassLoader} used to load the sender API.
+   * Set the {@link ClassLoader} to be used to load {@link CompressorProvider} SPI implementations.
    *
    * @since 1.48.0
    */
   public OtlpGrpcMetricExporterBuilder setServiceClassLoader(ClassLoader serviceClassLoader) {
-    requireNonNull(serviceClassLoader, "serviceClassLoader");
-    delegate.setServiceClassLoader(serviceClassLoader);
+    this.componentLoader = SpiHelper.create(serviceClassLoader).getComponentLoader();
     return this;
   }
 

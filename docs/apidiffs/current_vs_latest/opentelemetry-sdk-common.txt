@@ -1,2 +1,13 @@
 Comparing source compatibility of opentelemetry-sdk-common-1.52.0-SNAPSHOT.jar against opentelemetry-sdk-common-1.51.0.jar
-No changes.
++++  NEW INTERFACE: PUBLIC(+) ABSTRACT(+) io.opentelemetry.sdk.common.spi.ComponentLoader  (not serializable)
+	+++  CLASS FILE FORMAT VERSION: 52.0 <- n.a.
+	+++  NEW SUPERCLASS: java.lang.Object
+	+++  NEW METHOD: PUBLIC(+) ABSTRACT(+) java.lang.Iterable<T> load(java.lang.Class<T>)
+		GENERIC TEMPLATES: +++ T:java.lang.Object
++++  NEW CLASS: PUBLIC(+) FINAL(+) io.opentelemetry.sdk.common.spi.SpiHelper  (not serializable)
+	+++  CLASS FILE FORMAT VERSION: 52.0 <- n.a.
+	+++  NEW SUPERCLASS: java.lang.Object
+	+++  NEW METHOD: PUBLIC(+) STATIC(+) io.opentelemetry.sdk.common.spi.SpiHelper create(java.lang.ClassLoader)
+	+++  NEW METHOD: PUBLIC(+) STATIC(+) io.opentelemetry.sdk.common.spi.SpiHelper create(io.opentelemetry.sdk.common.spi.ComponentLoader)
+	+++  NEW METHOD: PUBLIC(+) io.opentelemetry.sdk.common.spi.ComponentLoader getComponentLoader()
+	+++  NEW METHOD: PUBLIC(+) STATIC(+) io.opentelemetry.sdk.common.spi.ComponentLoader serviceComponentLoader(java.lang.ClassLoader)

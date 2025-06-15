@@ -20,12 +20,14 @@ import io.opentelemetry.sdk.common.InternalTelemetryVersion;
 import io.opentelemetry.sdk.common.export.MemoryMode;
 import io.opentelemetry.sdk.common.export.ProxyOptions;
 import io.opentelemetry.sdk.common.export.RetryPolicy;
-import io.opentelemetry.sdk.internal.StandardComponentId;
+import io.opentelemetry.sdk.common.spi.ComponentLoader;
+import io.opentelemetry.sdk.common.spi.SpiHelper;
 import io.opentelemetry.sdk.metrics.InstrumentType;
 import io.opentelemetry.sdk.metrics.data.MetricData;
 import io.opentelemetry.sdk.metrics.export.AggregationTemporalitySelector;
 import io.opentelemetry.sdk.metrics.export.DefaultAggregationSelector;
 import io.opentelemetry.sdk.metrics.export.MetricExporter;
+import java.net.URI;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.Map;
@@ -43,13 +45,16 @@ import javax.net.ssl.X509TrustManager;
  */
 public final class OtlpHttpMetricExporterBuilder {
 
-  private static final String DEFAULT_ENDPOINT = "http://localhost:4318/v1/metrics";
+  private static final String DEFAULT_ENDPOINT_URL = "http://localhost:4318/v1/metrics";
+  private static final URI DEFAULT_ENDPOINT = URI.create(DEFAULT_ENDPOINT_URL);
+  private static final long DEFAULT_TIMEOUT_SECS = 10;
 
   private static final AggregationTemporalitySelector DEFAULT_AGGREGATION_TEMPORALITY_SELECTOR =
       AggregationTemporalitySelector.alwaysCumulative();
   private static final MemoryMode DEFAULT_MEMORY_MODE = MemoryMode.REUSABLE_DATA;
 
   private final HttpExporterBuilder<Marshaler> delegate;
+  @Nullable private ComponentLoader componentLoader;
 
   private AggregationTemporalitySelector aggregationTemporalitySelector;
   private DefaultAggregationSelector defaultAggregationSelector;
@@ -69,8 +74,7 @@ public final class OtlpHttpMetricExporterBuilder {
 
   OtlpHttpMetricExporterBuilder() {
     this(
-        new HttpExporterBuilder<>(
-            StandardComponentId.ExporterType.OTLP_HTTP_METRIC_EXPORTER, DEFAULT_ENDPOINT),
+        new HttpExporterBuilder<>("otlp", "metric", DEFAULT_ENDPOINT),
         DEFAULT_AGGREGATION_TEMPORALITY_SELECTOR,
         DefaultAggregationSelector.getDefault(),
         DEFAULT_MEMORY_MODE);
@@ -137,7 +141,13 @@ public final class OtlpHttpMetricExporterBuilder {
    */
   public OtlpHttpMetricExporterBuilder setCompression(String compressionMethod) {
     requireNonNull(compressionMethod, "compressionMethod");
-    Compressor compressor = CompressorUtil.validateAndResolveCompressor(compressionMethod);
+    Compressor compressor =
+        CompressorUtil.validateAndResolveCompressor(
+            compressionMethod,
+            componentLoader == null
+                ? SpiHelper.create(OtlpHttpMetricExporterBuilder.class.getClassLoader())
+                    .getComponentLoader()
+                : componentLoader);
     delegate.setCompression(compressor);
     return this;
   }
@@ -304,13 +314,12 @@ public final class OtlpHttpMetricExporterBuilder {
   }
 
   /**
-   * Set the {@link ClassLoader} used to load the sender API.
+   * Set the {@link ClassLoader} to be used to load {@link CompressorProvider} SPI implementations.
    *
    * @since 1.48.0
    */
   public OtlpHttpMetricExporterBuilder setServiceClassLoader(ClassLoader serviceClassLoader) {
-    requireNonNull(serviceClassLoader, "serviceClassLoader");
-    delegate.setServiceClassLoader(serviceClassLoader);
+    this.componentLoader = SpiHelper.create(serviceClassLoader).getComponentLoader();
     return this;
   }
 

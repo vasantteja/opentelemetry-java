@@ -20,6 +20,8 @@ import io.opentelemetry.exporter.otlp.internal.OtlpUserAgent;
 import io.opentelemetry.sdk.common.InternalTelemetryVersion;
 import io.opentelemetry.sdk.common.export.MemoryMode;
 import io.opentelemetry.sdk.common.export.RetryPolicy;
+import io.opentelemetry.sdk.common.spi.ComponentLoader;
+import io.opentelemetry.sdk.common.spi.SpiHelper;
 import io.opentelemetry.sdk.internal.StandardComponentId;
 import java.net.URI;
 import java.time.Duration;
@@ -47,6 +49,7 @@ public final class OtlpGrpcSpanExporterBuilder {
   // Visible for testing
   final GrpcExporterBuilder<Marshaler> delegate;
   private MemoryMode memoryMode;
+  @Nullable private ComponentLoader componentLoader;
 
   OtlpGrpcSpanExporterBuilder(GrpcExporterBuilder<Marshaler> delegate, MemoryMode memoryMode) {
     this.delegate = delegate;
@@ -146,7 +149,13 @@ public final class OtlpGrpcSpanExporterBuilder {
    */
   public OtlpGrpcSpanExporterBuilder setCompression(String compressionMethod) {
     requireNonNull(compressionMethod, "compressionMethod");
-    Compressor compressor = CompressorUtil.validateAndResolveCompressor(compressionMethod);
+    Compressor compressor =
+        CompressorUtil.validateAndResolveCompressor(
+            compressionMethod,
+            componentLoader == null
+                ? SpiHelper.create(OtlpGrpcSpanExporterBuilder.class.getClassLoader())
+                    .getComponentLoader()
+                : componentLoader);
     delegate.setCompression(compressor);
     return this;
   }
@@ -276,8 +285,7 @@ public final class OtlpGrpcSpanExporterBuilder {
    * @since 1.48.0
    */
   public OtlpGrpcSpanExporterBuilder setServiceClassLoader(ClassLoader serviceClassLoader) {
-    requireNonNull(serviceClassLoader, "serviceClassLoader");
-    delegate.setServiceClassLoader(serviceClassLoader);
+    this.componentLoader = SpiHelper.create(serviceClassLoader).getComponentLoader();
     return this;
   }
 

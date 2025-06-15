@@ -20,7 +20,8 @@ import io.opentelemetry.exporter.otlp.internal.OtlpUserAgent;
 import io.opentelemetry.sdk.common.InternalTelemetryVersion;
 import io.opentelemetry.sdk.common.export.MemoryMode;
 import io.opentelemetry.sdk.common.export.RetryPolicy;
-import io.opentelemetry.sdk.internal.StandardComponentId;
+import io.opentelemetry.sdk.common.spi.ComponentLoader;
+import io.opentelemetry.sdk.common.spi.SpiHelper;
 import java.net.URI;
 import java.time.Duration;
 import java.util.Map;
@@ -38,8 +39,8 @@ import javax.net.ssl.X509TrustManager;
  */
 public final class OtlpGrpcLogRecordExporterBuilder {
 
-  private static final String GRPC_SERVICE_NAME =
-      "opentelemetry.proto.collector.logs.v1.LogsService";
+  // Visible for testing
+  static final String GRPC_SERVICE_NAME = "opentelemetry.proto.collector.logs.v1.LogsService";
   // Visible for testing
   static final String GRPC_ENDPOINT_PATH = "/" + GRPC_SERVICE_NAME + "/Export";
 
@@ -51,6 +52,7 @@ public final class OtlpGrpcLogRecordExporterBuilder {
   // Visible for testing
   final GrpcExporterBuilder<Marshaler> delegate;
   private MemoryMode memoryMode;
+  @Nullable private ComponentLoader componentLoader;
 
   OtlpGrpcLogRecordExporterBuilder(GrpcExporterBuilder<Marshaler> delegate, MemoryMode memoryMode) {
     this.delegate = delegate;
@@ -150,7 +152,13 @@ public final class OtlpGrpcLogRecordExporterBuilder {
    */
   public OtlpGrpcLogRecordExporterBuilder setCompression(String compressionMethod) {
     requireNonNull(compressionMethod, "compressionMethod");
-    Compressor compressor = CompressorUtil.validateAndResolveCompressor(compressionMethod);
+    Compressor compressor =
+        CompressorUtil.validateAndResolveCompressor(
+            compressionMethod,
+            componentLoader == null
+                ? SpiHelper.create(OtlpGrpcLogRecordExporterBuilder.class.getClassLoader())
+                    .getComponentLoader()
+                : componentLoader);
     delegate.setCompression(compressor);
     return this;
   }
@@ -274,13 +282,12 @@ public final class OtlpGrpcLogRecordExporterBuilder {
   }
 
   /**
-   * Set the {@link ClassLoader} used to load the sender API.
+   * Set the {@link ClassLoader} to be used to load {@link CompressorProvider} SPI implementations.
    *
    * @since 1.48.0
    */
   public OtlpGrpcLogRecordExporterBuilder setServiceClassLoader(ClassLoader serviceClassLoader) {
-    requireNonNull(serviceClassLoader, "serviceClassLoader");
-    delegate.setServiceClassLoader(serviceClassLoader);
+    this.componentLoader = SpiHelper.create(serviceClassLoader).getComponentLoader();
     return this;
   }
 

@@ -20,7 +20,10 @@ import io.opentelemetry.sdk.common.InternalTelemetryVersion;
 import io.opentelemetry.sdk.common.export.MemoryMode;
 import io.opentelemetry.sdk.common.export.ProxyOptions;
 import io.opentelemetry.sdk.common.export.RetryPolicy;
+import io.opentelemetry.sdk.common.spi.ComponentLoader;
+import io.opentelemetry.sdk.common.spi.SpiHelper;
 import io.opentelemetry.sdk.internal.StandardComponentId;
+import java.net.URI;
 import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
@@ -37,11 +40,14 @@ import javax.net.ssl.X509TrustManager;
  */
 public final class OtlpHttpSpanExporterBuilder {
 
-  private static final String DEFAULT_ENDPOINT = "http://localhost:4318/v1/traces";
+  private static final String DEFAULT_ENDPOINT_URL = "http://localhost:4318/v1/traces";
+  private static final URI DEFAULT_ENDPOINT = URI.create(DEFAULT_ENDPOINT_URL);
+  private static final long DEFAULT_TIMEOUT_SECS = 10;
   private static final MemoryMode DEFAULT_MEMORY_MODE = MemoryMode.REUSABLE_DATA;
 
   private final HttpExporterBuilder<Marshaler> delegate;
   private MemoryMode memoryMode;
+  @Nullable private ComponentLoader componentLoader;
 
   OtlpHttpSpanExporterBuilder(HttpExporterBuilder<Marshaler> delegate, MemoryMode memoryMode) {
     this.delegate = delegate;
@@ -117,7 +123,13 @@ public final class OtlpHttpSpanExporterBuilder {
    */
   public OtlpHttpSpanExporterBuilder setCompression(String compressionMethod) {
     requireNonNull(compressionMethod, "compressionMethod");
-    Compressor compressor = CompressorUtil.validateAndResolveCompressor(compressionMethod);
+    Compressor compressor =
+        CompressorUtil.validateAndResolveCompressor(
+            compressionMethod,
+            componentLoader == null
+                ? SpiHelper.create(OtlpHttpSpanExporterBuilder.class.getClassLoader())
+                    .getComponentLoader()
+                : componentLoader);
     delegate.setCompression(compressor);
     return this;
   }
@@ -246,13 +258,12 @@ public final class OtlpHttpSpanExporterBuilder {
   }
 
   /**
-   * Set the {@link ClassLoader} used to load the sender API.
+   * Set the {@link ClassLoader} to be used to load {@link CompressorProvider} SPI implementations.
    *
    * @since 1.48.0
    */
   public OtlpHttpSpanExporterBuilder setServiceClassLoader(ClassLoader serviceClassLoader) {
-    requireNonNull(serviceClassLoader, "serviceClassLoader");
-    delegate.setServiceClassLoader(serviceClassLoader);
+    this.componentLoader = SpiHelper.create(serviceClassLoader).getComponentLoader();
     return this;
   }
 

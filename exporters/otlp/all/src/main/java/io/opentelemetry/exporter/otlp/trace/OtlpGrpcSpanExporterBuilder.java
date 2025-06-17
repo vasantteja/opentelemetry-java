@@ -285,7 +285,9 @@ public final class OtlpGrpcSpanExporterBuilder {
    * @since 1.48.0
    */
   public OtlpGrpcSpanExporterBuilder setServiceClassLoader(ClassLoader serviceClassLoader) {
+    requireNonNull(serviceClassLoader, "serviceClassLoader");
     this.componentLoader = SpiHelper.create(serviceClassLoader).getComponentLoader();
+    delegate.setServiceClassLoader(serviceClassLoader);
     return this;
   }
 

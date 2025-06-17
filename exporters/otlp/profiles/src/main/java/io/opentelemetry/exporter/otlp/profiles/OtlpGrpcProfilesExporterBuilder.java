@@ -55,8 +55,7 @@ public final class OtlpGrpcProfilesExporterBuilder {
     OtlpUserAgent.addUserAgentHeader(delegate::addConstantHeader);
   }
 
-  /** Creates a new {@link OtlpGrpcProfilesExporterBuilder} instance with default settings. */
-  public OtlpGrpcProfilesExporterBuilder() {
+  OtlpGrpcProfilesExporterBuilder() {
     this(
         new GrpcExporterBuilder<>(
             StandardComponentId.ExporterType.OTLP_GRPC_PROFILES_EXPORTER,
@@ -214,13 +213,11 @@ public final class OtlpGrpcProfilesExporterBuilder {
     return this;
   }
 
-  /**
-   * Set the {@link ClassLoader} to be used to load {@link CompressorProvider} SPI implementations.
-   *
-   * @since 1.48.0
-   */
+  /** Set the {@link ClassLoader} used to load the sender API. */
   public OtlpGrpcProfilesExporterBuilder setServiceClassLoader(ClassLoader serviceClassLoader) {
+    requireNonNull(serviceClassLoader, "serviceClassLoader");
     this.componentLoader = SpiHelper.create(serviceClassLoader).getComponentLoader();
+    delegate.setServiceClassLoader(serviceClassLoader);
     return this;
   }
 

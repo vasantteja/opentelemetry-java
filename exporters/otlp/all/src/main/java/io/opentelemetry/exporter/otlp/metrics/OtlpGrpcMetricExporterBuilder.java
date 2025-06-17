@@ -89,7 +89,6 @@ public final class OtlpGrpcMetricExporterBuilder {
         DEFAULT_AGGREGATION_TEMPORALITY_SELECTOR,
         DefaultAggregationSelector.getDefault(),
         DEFAULT_MEMORY_MODE);
-    OtlpUserAgent.addUserAgentHeader(delegate::addConstantHeader);
   }
 
   /**
@@ -342,12 +341,14 @@ public final class OtlpGrpcMetricExporterBuilder {
   }
 
   /**
-   * Set the {@link ClassLoader} to be used to load {@link CompressorProvider} SPI implementations.
+   * Set the {@link ClassLoader} used to load the sender API.
    *
    * @since 1.48.0
    */
   public OtlpGrpcMetricExporterBuilder setServiceClassLoader(ClassLoader serviceClassLoader) {
+    requireNonNull(serviceClassLoader, "serviceClassLoader");
     this.componentLoader = SpiHelper.create(serviceClassLoader).getComponentLoader();
+    delegate.setServiceClassLoader(serviceClassLoader);
     return this;
   }
 

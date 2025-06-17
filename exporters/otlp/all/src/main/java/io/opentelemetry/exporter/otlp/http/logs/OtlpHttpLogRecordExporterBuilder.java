@@ -23,7 +23,6 @@ import io.opentelemetry.sdk.common.export.RetryPolicy;
 import io.opentelemetry.sdk.common.spi.ComponentLoader;
 import io.opentelemetry.sdk.common.spi.SpiHelper;
 import io.opentelemetry.sdk.internal.StandardComponentId;
-import java.net.URI;
 import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
@@ -40,9 +39,7 @@ import javax.net.ssl.X509TrustManager;
  */
 public final class OtlpHttpLogRecordExporterBuilder {
 
-  private static final String DEFAULT_ENDPOINT_URL = "http://localhost:4318/v1/logs";
-  private static final URI DEFAULT_ENDPOINT = URI.create(DEFAULT_ENDPOINT_URL);
-  private static final long DEFAULT_TIMEOUT_SECS = 10;
+  private static final String DEFAULT_ENDPOINT = "http://localhost:4318/v1/logs";
   private static final MemoryMode DEFAULT_MEMORY_MODE = MemoryMode.REUSABLE_DATA;
 
   private final HttpExporterBuilder<Marshaler> delegate;
@@ -257,12 +254,14 @@ public final class OtlpHttpLogRecordExporterBuilder {
   }
 
   /**
-   * Set the {@link ClassLoader} to be used to load {@link CompressorProvider} SPI implementations.
+   * Set the {@link ClassLoader} used to load the sender API.
    *
    * @since 1.48.0
    */
   public OtlpHttpLogRecordExporterBuilder setServiceClassLoader(ClassLoader serviceClassLoader) {
+    requireNonNull(serviceClassLoader, "serviceClassLoader");
     this.componentLoader = SpiHelper.create(serviceClassLoader).getComponentLoader();
+    delegate.setServiceClassLoader(serviceClassLoader);
     return this;
   }
 

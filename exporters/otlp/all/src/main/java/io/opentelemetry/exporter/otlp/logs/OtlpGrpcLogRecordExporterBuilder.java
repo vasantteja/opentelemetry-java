@@ -22,6 +22,7 @@ import io.opentelemetry.sdk.common.export.MemoryMode;
 import io.opentelemetry.sdk.common.export.RetryPolicy;
 import io.opentelemetry.sdk.common.spi.ComponentLoader;
 import io.opentelemetry.sdk.common.spi.SpiHelper;
+import io.opentelemetry.sdk.internal.StandardComponentId;
 import java.net.URI;
 import java.time.Duration;
 import java.util.Map;
@@ -39,8 +40,8 @@ import javax.net.ssl.X509TrustManager;
  */
 public final class OtlpGrpcLogRecordExporterBuilder {
 
-  // Visible for testing
-  static final String GRPC_SERVICE_NAME = "opentelemetry.proto.collector.logs.v1.LogsService";
+  private static final String GRPC_SERVICE_NAME =
+      "opentelemetry.proto.collector.logs.v1.LogsService";
   // Visible for testing
   static final String GRPC_ENDPOINT_PATH = "/" + GRPC_SERVICE_NAME + "/Export";
 
@@ -282,12 +283,14 @@ public final class OtlpGrpcLogRecordExporterBuilder {
   }
 
   /**
-   * Set the {@link ClassLoader} to be used to load {@link CompressorProvider} SPI implementations.
+   * Set the {@link ClassLoader} used to load the sender API.
    *
    * @since 1.48.0
    */
   public OtlpGrpcLogRecordExporterBuilder setServiceClassLoader(ClassLoader serviceClassLoader) {
+    requireNonNull(serviceClassLoader, "serviceClassLoader");
     this.componentLoader = SpiHelper.create(serviceClassLoader).getComponentLoader();
+    delegate.setServiceClassLoader(serviceClassLoader);
     return this;
   }
 
